@@ -7,19 +7,41 @@ class PythonScipyFormula < Formula
   url "http://downloads.sourceforge.net/project/scipy/scipy/0.15.1/scipy-0.15.1.tar.gz"
   additional_software_roots [ config_value("lustre-software-root")[hostname] ]
 
-  supported_build_names "python2.7", "python3"
+  supported_build_names "python2.7.3", "python2.7.5", "python3"
+
+  params acml: false 
+  params open_blas: false
+  params mkl: false
 
   depends_on do
-    [ python_module_from_build_name, "python_numpy/1.9.2/*#{python_version_from_build_name}*" ]
+    case build_name
+    when /acml/
+      acml = true
+      [ python_module_from_build_name, "python_numpy/1.9.2/*#{python_version_from_build_name}*", "cblas/20110120/*acml*" ]
+    when /.*mkl.*/
+      mkl = true
+      [ python_module_from_build_name,"python_numpy/1.9.2/*#{python_version_from_build_name}*" ]
+    when /openblas/
+      open_blas = true
+      [ python_module_from_build_name, "python_numpy/1.9.2/*#{python_version_from_build_name}*" ]
+    end
   end
 
   module_commands do
     pe = "PE-"
     pe = "PrgEnv-" if cray_system?
 
-    commands = [ "unload #{pe}gnu #{pe}pgi #{pe}cray #{pe}intel" ]
+    commands = [ "unload #{pe}gnu #{pe}pgi #{pe}cray #{pe}intel cray-libsci" ]
     commands << "load #{pe}gnu"
     commands << "swap gcc gcc/#{$1}" if build_name =~ /gnu([\d\.]+)/
+    if acml == true
+      commands << "load acml"
+    elsif mkl == true
+      commands << "load mkl"
+    elsif open_blas == true
+      commands << "load openblas"
+    end
+
     commands << "unload python"
     commands << "load #{python_module_from_build_name}"
     commands << "load python_numpy/1.9.2"
@@ -40,9 +62,51 @@ class PythonScipyFormula < Formula
 
   def install
     module_list
+    ml_prefix = ""
 
-    system_python "setup.py build"
-    system_python "setup.py install --prefix=#{prefix} --compile"
+    FileUtils.mkdir_p "#{prefix}/lib"
+    if acml == true
+      ml_prefix = module_environment_variable("acml", "ACML_BASE_DIR")
+      ml_prefix += "/gfortran64"
+      FileUtils.cp "#{cblas.prefix}/lib/libcblas.a", "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/lib/libacml.a",   "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/lib/libacml.so",  "#{prefix}/lib", verbose: true
+    elsif open_blas == true
+      ml_prefix = module_envionment_variable("openblas/dynamic/0.2.6", "BLASDIR");
+      FileUtils.cp "#{ml_prefix}/libopenblasp-r0.2.6.a",   "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/libopenblasp-r0.2.6.so",  "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/libopenblas.so.0",  "#{prefix}/lib", verbose: true
+    end
+    if acml == true
+      ml_prefix = module_environment_variable("acml", "ACML_BASE_DIR")
+      ml_prefix += "/gfortran64"
+    elsif open_blas == true
+      ml_prefix = module_environment_variable("openblas/dynamic/0.2.6", "BLASDIR")
+      ml_prefix += "/libopenblasp-r0.2.6.so"
+    end
+
+    ENV['CC']  = 'cc'
+    ENV['CXX'] = 'CC'
+    ENV['OPT'] = '-O3 -funroll-all-loops'
+
+    inc_dirs = ""
+    if acml == true
+      inc_dirs = "#{cblas.prefix}/include"
+    elsif open_blas == true
+      inc_dirs = "#{ml_prefix}/include"
+    end
+
+      File.open("site.cfg", "w+") do |f|
+        f.write <<-EOF.strip_heredoc
+        [mkl]
+        library_dirs = /opt/intel/composer_xe_2015.2.164/mkl/lib/intel64
+        include_dirs = /opt/intel/composer_xe_2015.2.164/mkl/include
+        lapack_libs = mkl_gf_lp64,mkl_sequential,mkl_core
+        mkl_libs = mkl_gf_lp64,mkl_sequential,mkl_core,mkl_def, mkl_avx
+        EOF
+      end
+    Dir.chdir "#{prefix}/source"
+    system_python "setup.py config build_clib  build_ext  install --prefix=#{prefix}"
   end
 
   modulefile <<-MODULEFILE.strip_heredoc

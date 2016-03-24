@@ -3,30 +3,12 @@ class MercurialFormula < Formula
   url "http://mercurial.selenic.com/release/mercurial-2.6.3.tar.gz"
 
   depends_on do
-    packages = [ ]
-    case build_name
-    when /python3.3/ then
-      packages << "python/3.3.0"
-    when /python2.7.5/
-      packages << "python/2.7.5"
-    when /python2.7.3/
-      packages << "python/2.7.3"
-    when /python2.6/
-    end
+    packages = [ python_module_from_build_name ]
     packages
   end
 
   module_commands do
-    m = [ "unload python" ]
-
-    case build_name
-    when /python3.3/
-      m << "load python/3.3.0"
-    when /python2.7.5/
-      m << "load python/2.7.5"
-    when /python2.7.3/
-      m << "load python/2.7.3"
-    end
+    m = [ "unload python" "load #{python_module_from_build_name}" ]
     m
   end
 

@@ -26,6 +26,8 @@ class VmdFormula < Formula
     starting_directory = Dir.getwd()
     print "The starting directory is #{ starting_directory }\n"
     
+    system "mkdir #{prefix}/source && mkdir #{prefix}/vmd_installation_dir && cp ../../vmd-1.9.2.bin.LINUXAMD64-RHEL5.opengl.tar.gz #{prefix} && tar xf #{prefix}/vmd-1.9.2.bin.LINUXAMD64-RHEL5.opengl.tar.gz -C #{prefix}/source --strip-components=1"
+
     #-----------------------------------------------------
     # Define the location of the netcdf base directory   -
     # directory.                                         -
@@ -46,21 +48,21 @@ class VmdFormula < Formula
     # directory. The location should be writable by the  -
     # installer.                                         -
     #-----------------------------------------------------
-    ENV['VMD_BASE_DIR'] = "#{prefix}/source/vmd_installation_dir"
+    ENV['VMD_BASE_DIR'] = "#{prefix}/vmd_installation_dir"
     system "echo VMD_BASE_DIR is ${VMD_BASE_DIR}"
 
     #-----------------------------------------------------
     # Define the location of the vmd plugin dir          -
     # directory.                                         -
     #-----------------------------------------------------
-    ENV['PLUGINDIR'] = "#{prefix}/source/vmd_installation_dir/plugins"
+    ENV['PLUGINDIR'] = "#{prefix}/vmd_installation_dir/plugins"
     system "echo PLUGINDIR  is ${PLUGINDIR}"
 
     #-----------------------------------------------------
     # Define the location to install the vmd binary.     -
     #                                                    -
     #-----------------------------------------------------
-    ENV['VMDINSTALLBINDIR'] = "#{prefix}/source/vmd_installation_dir/bin"
+    ENV['VMDINSTALLBINDIR'] = "#{prefix}/vmd_installation_dir/bin"
     system "echo VMDINSTALLBINDIR  is ${VMDINSTALLBINDIR}"
 
     #-----------------------------------------------------
@@ -74,7 +76,7 @@ class VmdFormula < Formula
     # Define the location to install the vmd library.    -
     #                                                    -
     #-----------------------------------------------------
-    ENV['VMDINSTALLLIBRARYDIR'] =  "#{prefix}/source/vmd_installation_dir/lib"
+    ENV['VMDINSTALLLIBRARYDIR'] =  "#{prefix}/vmd_installation_dir/lib"
     system "echo VMDINSTALLLIBRARYDIR  is ${VMDINSTALLLIBRARYDIR}"
 
     #-----------------------------------------------------
@@ -120,18 +122,18 @@ class VmdFormula < Formula
     tclinc = module_environment_variable("tcl/8.5.15","TCLINC")
     tcllib = module_environment_variable("tcl/8.5.15","TCLLIB")
 
-    Dir.chdir("#{prefix}/source/plugins")
-    puts Dir.pwd
-    system "gmake"
-    system "gmake clean"
-    system "gmake LINUXAMD64 TCLINC=#{tclinc} TCLLIB=#{tcllib}"
-    system "gmake distrib"
+    #Dir.chdir("#{prefix}/source/plugins")
+    #puts Dir.pwd
+    #system "gmake"
+    #system "gmake clean"
+    #system "gmake LINUXAMD64 TCLINC=#{tclinc} TCLLIB=#{tcllib}"
+    #system "gmake distrib"
 
     #-----------------------------------------------------
     # Commands to link the surf binary.                  -
     #                                                    -
     #-----------------------------------------------------
-    Dir.chdir("#{starting_directory}/source/vmd-1.9.1/lib/surf")
+    Dir.chdir("#{starting_directory}/source/lib/surf")
     puts Dir.pwd
     system "ln -f -s #{surf.prefix}/surf ./surf_LINUXAMD64" 
 
@@ -139,7 +141,7 @@ class VmdFormula < Formula
     # Commands to link the stride binary.                -
     #                                                    -
     #-----------------------------------------------------
-    Dir.chdir("#{starting_directory}/source/vmd-1.9.1/lib/stride")
+    Dir.chdir("#{starting_directory}/source/lib/stride")
     puts Dir.pwd
     system "ln -f -s #{stride.prefix}/stride ./stride_LINUXAMD64" 
 
@@ -147,7 +149,7 @@ class VmdFormula < Formula
     # Commands to link the tachyon binary.               -
     #                                                    -
     #-----------------------------------------------------
-    Dir.chdir("#{starting_directory}/source/vmd-1.9.1/lib/tachyon")
+    Dir.chdir("#{starting_directory}/source/lib/tachyon")
     system "ln -f -s #{tachyon.prefix}/source/compile/linux-64/tachyon ./tachyon_LINUXAMD64" 
     puts Dir.pwd
 
@@ -170,13 +172,12 @@ class VmdFormula < Formula
     #-#system "cp -rf  #{tachyon.prefix}/source/compile/linux-mpi/* tachyon/" 
     #-#system "cp tachyon/tachyon tachyon/tachyon_LINUXAMD64" 
 
-    Dir.chdir("#{prefix}/source/vmd-1.9.1")
-    system "rm -rf plugins"
-    system "cp -rf #{prefix}/source/vmd_installation_dir/plugins plugins "
+    Dir.chdir("#{prefix}/source")
+    #system "rm -rf plugins"
+    #system "cp -rf #{prefix}/source/vmd_installation_dir/plugins plugins "
     system "./configure LINUXAMD64 OPENGL FLTK TK TCL NETCDF" 
-    Dir.chdir("#{prefix}/source/vmd-1.9.1/src")
+    Dir.chdir("#{prefix}/source/src")
     system "make clean"
-    system "make"
     system "make install"
 
     Dir.chdir("#{starting_directory}")
@@ -196,7 +197,7 @@ class VmdFormula < Formula
       }
       module-whatis "<%= @package.name %> <%= @package.version %>"
       module load netcdf/4.1.3
-      prepend-path PATH <%= @package.prefix %>/source/vmd_installation_dir/bin
-      prepend-path LD_LIBRARY_PATH <%= @package.prefix %>/source/vmd_installation_dir/lib
+      prepend-path PATH <%= @package.prefix %>/vmd_installation_dir/bin
+      prepend-path LD_LIBRARY_PATH <%= @package.prefix %>/vmd_installation_dir/lib
   EOF
 end

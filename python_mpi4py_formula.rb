@@ -19,6 +19,7 @@ class PythonMpi4pyFormula < Formula
     commands << "load #{pe}gnu"
     commands << "swap gcc gcc/#{$1}" if build_name =~ /gnu([\d\.]+)/
     commands << "unload python"
+    commands << "load cray-mpich" if cray_system?
     commands << "load #{python_module_from_build_name}"
     commands
   end
@@ -45,10 +46,15 @@ class PythonMpi4pyFormula < Formula
     end
 
     build_options = ""
-    build_options = "--mpi=cray" if cray_build
+    build_options = "--mpicc=cc --mpi=cray" if cray_build
 
-    system_python "setup.py build #{build_options}"
-    system_python "setup.py install --prefix=#{prefix} --compile"
+    if build_name =~ /python3.*/
+      system "python3 setup.py build #{build_options}"
+      system "python3 setup.py install --prefix=#{prefix} --compile"
+    else
+      system_python "setup.py build #{build_options}"
+      system_python "setup.py install --prefix=#{prefix} --compile"
+    end
   end
 
   modulefile <<-MODULEFILE.strip_heredoc

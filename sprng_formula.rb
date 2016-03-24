@@ -1,4 +1,4 @@
-class Sprng2Formula < Formula
+class SprngFormula < Formula
   homepage "http://www.sprng.org/"
   url "http://www.sprng.org/Version2.0/sprng2.0b.tar.gz"
   version "2.0b"
@@ -48,17 +48,17 @@ class Sprng2Formula < Formula
           #If your system does not have ranlib, then replace next statement with
           #RANLIB = echo
           RANLIB = ranlib
-          CC = mpicc
+          CC = cc
           CLD = $(CC)
           # Set f77 to echo if you do not have a FORTRAN compiler
-          F77 = mpif77
+          F77 = ftn
           #F77 = echo
           F77LD = $(F77)
           FFXN = -DAdd__
           FSUFFIX = F
 
-          MPIF77 = mpif77
-          MPICC = mpicc
+          MPIF77 = cc
+          MPICC = CC
 
           # To use MPI, set the MPIDIR to location of mpi library, and MPILIB
           # to name of mpi library. Remove # signs from beginning of next 3 lines.

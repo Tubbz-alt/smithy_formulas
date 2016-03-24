@@ -1,4 +1,4 @@
-class FftwFormula < Formula
+class FftwparallelFormula < Formula
   homepage "http://www.fftw.org/index.html"
 
   concern for_version("3.3.3") do
@@ -48,7 +48,7 @@ class FftwFormula < Formula
     when /cray/
       commands << "load cce/#{$1}" if build_name =~ /cray([\d\.]+)/
     end
-    commands << "load openmpi/1.8.4"
+    commands << "load openmpi/1.8.2"
     commands
   end
 
@@ -71,9 +71,8 @@ class FftwFormula < Formula
       ENV["FC"]  = "pgf90"
     end
 
-    enable_parallel= (build_name =~ /parallel/) ? "--enable-openmp --enable-mpi --enable-threads" : ""
+    enable_parallel= (name =~ /parallel/) ? "--enable-openmp --enable-mpi --enable-threads" : ""
 
-    module_commands
     module_list
     system "./configure --prefix=#{prefix} --enable-fortran #{enable_parallel}"
     system "make"

@@ -6,7 +6,7 @@ class PythonNumpyFormula < Formula
   homepage "http://www.numpy.org/"
   additional_software_roots [ config_value("lustre-software-root")[hostname] ]
 
-  supported_build_names /python.*_gnu.*/
+  supported_build_names /python.*_acml_gnu.*|python.*_craylibsci_gnu.*|python.*_mkl_gnu.*/
 
   concern for_version("1.8.0") do
     included do
@@ -20,8 +20,22 @@ class PythonNumpyFormula < Formula
     end
   end
 
+  params acml: false 
+  params cray_libsci: false 
+  params mkl: false 
+
   depends_on do
-    [ python_module_from_build_name, "cblas/20110120/*acml*" ]
+    case build_name
+    when /acml/
+      acml = true
+      [ python_module_from_build_name, "cblas/20110120/*acml*" ]
+    when /craylibsci/
+      cray_libsci = true
+      [ python_module_from_build_name ]
+    when /mkl/
+      mkl = true
+      [ python_module_from_build_name ]
+    end
   end
 
   module_commands do
@@ -29,22 +43,14 @@ class PythonNumpyFormula < Formula
     pe = "PrgEnv-" if cray_system?
 
     commands = [ "unload #{pe}gnu #{pe}pgi #{pe}cray #{pe}intel" ]
-    # case build_name
-    # when /gnu/
-      commands << "load #{pe}gnu"
-      commands << "swap gcc gcc/#{$1}" if build_name =~ /gnu([\d\.]+)/
-    # when /pgi/
-    #   commands << "load #{pe}pgi"
-    #   commands << "swap pgi pgi/#{$1}" if build_name =~ /pgi([\d\.]+)/
-    # when /intel/
-    #   commands << "load #{pe}intel"
-    #   commands << "swap intel intel/#{$1}" if build_name =~ /intel([\d\.]+)/
-    # when /cray/
-    #   commands << "load #{pe}cray"
-    #   commands << "swap cce cce/#{$1}" if build_name =~ /cray([\d\.]+)/
-    # end
+    commands << "load #{pe}gnu"
+    commands << "swap gcc gcc/#{$1}" if build_name =~ /gnu([\d\.]+)/
 
-    commands << "load acml"
+    if acml == true
+      commands << "load acml"
+    elsif cray_libsci == true
+      commands << "load cray-libsci"
+    end
     commands << "unload python"
     commands << "load #{python_module_from_build_name}"
 
@@ -53,44 +59,78 @@ class PythonNumpyFormula < Formula
 
   def install
     module_list
-
-    acml_prefix = module_environment_variable("acml", "ACML_BASE_DIR")
-
-    acml_prefix += "/gfortran64"
+    ml_prefix = ""
 
     FileUtils.mkdir_p "#{prefix}/lib"
-    FileUtils.cp "#{cblas.prefix}/lib/libcblas.a", "#{prefix}/lib", verbose: true
-    FileUtils.cp "#{acml_prefix}/lib/libacml.a",   "#{prefix}/lib", verbose: true
-    FileUtils.cp "#{acml_prefix}/lib/libacml.so",  "#{prefix}/lib", verbose: true
+    if acml == true
+      ml_prefix = module_environment_variable("acml", "ACML_BASE_DIR")
+      ml_prefix += "/gfortran64"
+      FileUtils.cp "#{cblas.prefix}/lib/libcblas.a", "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/lib/libacml.a",   "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/lib/libacml.so",  "#{prefix}/lib", verbose: true
+    elsif cray_libsci == true
+      ml_prefix = module_environment_variable("cray-libsci", "CRAY_LIBSCI_PREFIX_DIR")
+      FileUtils.cp "#{ml_prefix}/lib/libsci_gnu.a",   "#{prefix}/lib", verbose: true
+      FileUtils.cp "#{ml_prefix}/lib/libsci_gnu.so",  "#{prefix}/lib", verbose: true
+    end
 
-    ENV['CC']  = 'gcc'
-    ENV['CXX'] = 'g++'
+
+    ENV['CC']  = 'cc'
+    ENV['CXX'] = 'CC'
     ENV['OPT'] = '-O3 -funroll-all-loops'
 
-    File.open("site.cfg", "w+") do |f|
-      f.write <<-EOF.strip_heredoc
-        [blas]
-        blas_libs = cblas, acml
-        library_dirs = #{prefix}/lib
-        include_dirs = #{cblas.prefix}/include
+    inc_dirs = ""
+    if acml == true
+      inc_dirs = "#{cblas.prefix}/include"
+    elsif cray_libsci == true
+      inc_dirs = "#{ml_prefix}/include"
+    end
+    if mkl == true
+      File.open("site.cfg", "w+") do |f|
+        f.write <<-EOF.strip_heredoc
+          [mkl]
+          library_dirs = /opt/intel/composer_xe_2015.2.164/mkl/lib/intel64
+          include_dirs = /opt/intel/composer_xe_2015.2.164/mkl/include
+          lapack_libs = mkl_gf_lp64,mkl_gnu_thread,mkl_core
+          mkl_libs = mkl_gf_lp64,mkl_gnu_thread,mkl_core
 
-        [lapack]
-        language = f77
-        lapack_libs = acml
-        library_dirs = #{acml_prefix}/lib
-        include_dirs = #{acml_prefix}/include
+          [fftw]
+          libraries = fftw3
+          library_dirs = /opt/fftw/3.3.0.1/x86_64/lib
+          include_dirs = /opt/fftw/3.3.0.1/x86_64/include
+          EOF
+      end
+    else
+      File.open("site.cfg", "w+") do |f|
+        f.write <<-EOF.strip_heredoc
+          [blas]
+          blas_libs = cblas, acml
+          library_dirs = #{prefix}/lib
+          include_dirs = #{inc_dirs}
 
-        [fftw]
-        libraries = fftw3
-        library_dirs = /opt/fftw/3.3.0.1/x86_64/lib
-        include_dirs = /opt/fftw/3.3.0.1/x86_64/include
-      EOF
+          [lapack]
+          language = f77
+          lapack_libs = acml
+          library_dirs = #{ml_prefix}/lib
+          include_dirs = #{ml_prefix}/include
+
+          [fftw]
+          libraries = fftw3
+          library_dirs = /opt/fftw/3.3.0.1/x86_64/lib
+          include_dirs = /opt/fftw/3.3.0.1/x86_64/include
+        EOF
+      end
     end
 
     system "cat site.cfg"
 
-    system_python "setup.py build"
-    system_python "setup.py install --prefix=#{prefix} --compile"
+    if build_name =~ /python3/
+      system "python3 setup.py build"
+      system "python3 setup.py install --prefix=#{prefix} --compile"
+    else
+      system_python "setup.py build"
+      system_python "setup.py install --prefix=#{prefix} --compile"
+    end
   end
 
   modulefile do

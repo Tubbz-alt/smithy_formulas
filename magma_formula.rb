@@ -18,6 +18,7 @@ class MagmaFormula < Formula
     end
     
     commands << "load cudatoolkit"
+    commands << "load acml"
 
     commands
 
@@ -41,8 +42,8 @@ class MagmaFormula < Formula
         
         -CC        = icc
         -CXX       = icpc
-        +CC        = cc
-        +CXX       = CC
+        +CC        = nvcc
+        +CXX       = nvcc
          NVCC      = nvcc
         -FORT      = ifort
         +FORT      = ftn -fpp
@@ -72,7 +73,7 @@ class MagmaFormula < Formula
          $(PTREXEC): $(PTROBJ)
       EOF
 
-      system "export CUDADIR=$CRAY_CUDATOOLKIT_DIR && make"
+      system "export LD_LIBRARY_PATH=/sw/redhat6/acml/5.3.0/gfortran64/lib/ && export CUDADIR=$CRAY_CUDATOOLKIT_DIR && make -k"
     when /gnu/
       patch <<-EOF.strip_heredoc
         diff --git a/make.inc b/make.inc
@@ -82,10 +83,10 @@ class MagmaFormula < Formula
         +++ b/make.inc
         @@ -0,0 +1,16 @@
         +GPU_TARGET = Kepler
-        +CC        = cc -DCUBLAS_GFORTRAN
-        +CXX       = CC -DCUBLAS_GFORTRAN
+        +CC        = gcc -DCUBLAS_GFORTRAN -lcublas
+        +CXX       = g++ -DCUBLAS_GFORTRAN -lcublas
         +NVCC      = nvcc -Xcompiler -fPIC
-        +FORT      = ftn -DCUBLAS_GFORTRAN
+        +FORT      = mpifort -DCUBLAS_GFORTRAN
         +ARCH      = ar
         +ARCHFLAGS = cr
         +RANLIB    = ranlib
@@ -93,13 +94,54 @@ class MagmaFormula < Formula
         +F77OPTS   = -O3 -DADD_ -fno-second-underscore -fPIC
         +FOPTS     = -O3 -DADD_ -fno-second-underscore -fPIC
         +NVOPTS    = -O3 -DADD_ --compiler-options -fno-strict-aliasing -DUNIX
-        +LDOPTS    = -fPIC -Xlinker -zmuldefs -L$(CRAY_CUDATOOLKIT_DIR)/lib64 -L$(CRAY_CUDATOOLKIT_DIR)/extras/CUPTI/lib64 -Wl,--as-needed -Wl,-lcupti -Wl,-lcudart -Wl,--no-as-needed -L/opt/cray/nvidia/default/lib64 -lcuda
+        +LDOPTS    = -fPIC -Xlinker -zmuldefs -L$(CUDATOOLKIT_HOME)/lib64 -L$(CUDATOOLKIT_HOME)/extras/CUPTI/lib64 -Wl,--as-needed -Wl,-lcupti -Wl,-lcudart -Wl,--no-as-needed -L$(CUDATOOLKIT_HOME)/lib64 -lcuda
         +LIB       =  -lpthread -lcublas -lm -lcupti -lcudart
-        +CUDADIR   = $(CRAY_CUDATOOLKIT_DIR)
-        +INC       = -I$(CUDADIR)/include
+        +CUDADIR   = $(CUDATOOLKIT_HOME)
+        +INC       = -I$(CUDATOOLKIT_HOME)/include
       EOF
 
-      system "export LD_LIBRARY_PATH=/opt/acml/5.3.1/gfortran64/lib/:$LD_LIBRARY_PATH && make"
+      patch <<-EOF.strip_heredoc
+        diff --git a/Makefile b/Makefile
+        index a021ec6..01f3ceb 100644
+        --- a/Makefile
+        +++ b/Makefile
+        @@ -53,24 +53,12 @@ libquark:
+                ( cd quark          && $(MAKE) )
+                @echo
+        
+        -lapacktest:
+        -       @echo ======================================== lapacktest
+        -       ( cd testing/matgen && $(MAKE) )
+        -       ( cd testing/lin    && $(MAKE) )
+        -       @echo
+        -
+        -test: lib
+        -       @echo ======================================== testing
+        -       ( cd testing        && $(MAKE) )
+        -       @echo
+        
+         clean:
+                ( cd magmablas      && $(MAKE) clean )
+                ( cd src            && $(MAKE) clean )
+                ( cd control        && $(MAKE) clean )
+                ( cd interface_cuda && $(MAKE) clean )
+        -       ( cd testing        && $(MAKE) clean )
+        -       ( cd testing/lin    && $(MAKE) clean )
+                ( cd sparse-iter    && $(MAKE) clean )
+                #(cd quark          && $(MAKE) clean )
+                -rm -f $(LIBMAGMA) $(LIBMAGMA_SO)
+        @@ -81,8 +69,6 @@ cleanall:
+                ( cd src            && $(MAKE) cleanall )
+                ( cd control        && $(MAKE) cleanall )
+                ( cd interface_cuda && $(MAKE) cleanall )
+        -       ( cd testing        && $(MAKE) cleanall )
+        -       ( cd testing/lin    && $(MAKE) cleanall )
+                ( cd sparse-iter    && $(MAKE) cleanall )
+                ( cd lib            && rm -f *.a *.so )
+                #(cd quark          && $(MAKE) cleanall )
+      EOF
+
+      system "export LD_LIBRARY_PATH=/sw/redhat6/acml/5.3.0/gfortran64/lib/:$LD_LIBRARY_PATH && make"
     end
 
     system "cd #{prefix} && cp -rv source/include source/lib ./"

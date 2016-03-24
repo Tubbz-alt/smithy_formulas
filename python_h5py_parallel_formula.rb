@@ -1,13 +1,18 @@
-class PythonH5pyFormula < Formula
+class PythonH5pyParallelFormula < Formula
   homepage "http://www.h5py.org/"
   url "https://pypi.python.org/packages/source/h/h5py/h5py-2.4.0.tar.gz"
   md5 "80c9a94ae31f84885cc2ebe1323d6758"
 
-  supported_build_names /python.*_hdf5.*/
+  supported_build_names /python.*_hdf5-parallel.*/
 
-  params hdf5_module_name: cray_system? ? "cray-hdf5" : "hdf5"
+  params hdf5_module_name: cray_system? ? "cray-hdf5" : "hdf5-parallel"
 
-  additional_software_roots [ config_value("lustre-software-root").fetch(Smithy::Config.hostname) ]
+  concern for_version("2.5.0") do
+    included do
+      url "https://pypi.python.org/packages/source/h/h5py/h5py-2.5.0.tar.gz"
+      md5 "6e4301b5ad5da0d51b0a1e5ac19e3b74"
+    end
+  end
 
   concern for_version("2.2.0") do
     included do
@@ -34,6 +39,7 @@ class PythonH5pyFormula < Formula
     commands << "load #{python_module_from_build_name}"
     commands << "load python_numpy"
     commands << "load python_cython"
+    commands << "load python_mpi4py"
     commands << "load szip"
 
     commands << "load #{hdf5_module_name}"
@@ -48,10 +54,11 @@ class PythonH5pyFormula < Formula
 
     ENV["CPPFLAGS"] = "-I#{hdf5_prefix}/include"
     ENV["LDFLAGS"]  = "-L#{hdf5_prefix}/lib"
+    ENV["cc"] = "mpicc" if !cray_system?
+    ENV["CC"] = "mpiCC" if !cray_system?
 
-    system_python "setup.py build"
+    system_python "setup.py configure --mpi"
     system_python "setup.py install --prefix=#{prefix} --compile"
-    system_python "setup.py test"
   end
 
 
@@ -73,7 +80,6 @@ class PythonH5pyFormula < Formula
 
     <%= python_module_build_list @package, @builds %>
     set PREFIX <%= @package.version_directory %>/$BUILD
-    set LUSTREPREFIX #{additional_software_roots.first}/#{arch}/<%= @package.name %>/<%= @package.version %>/$BUILD
 
     prepend-path PYTHONPATH      $PREFIX/lib/$LIBDIR/site-packages
     prepend-path PYTHONPATH      $PREFIX/lib64/$LIBDIR/site-packages

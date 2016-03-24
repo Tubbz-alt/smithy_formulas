@@ -1,7 +1,19 @@
 class ValgrindFormula < Formula
   homepage "http://valgrind.org/"
-  url "http://www.valgrind.org/downloads/valgrind-3.9.0.tar.bz2"
-  md5 "0947de8112f946b9ce64764af7be6df2"
+
+  concern for_version("3.9.0") do
+    included do
+      url "http://www.valgrind.org/downloads/valgrind-3.9.0.tar.bz2"
+      md5 "0947de8112f946b9ce64764af7be6df2"
+    end
+  end
+
+  concern for_version("3.11.0") do
+    included do
+      url "http://valgrind.org/downloads/valgrind-3.11.0.tar.bz2"
+      md5 "4ea62074da73ae82e0162d6550d3f129"
+    end
+  end
 
   module_commands [
     "unload PrgEnv-gnu PrgEnv-pgi PrgEnv-intel PrgEnv-cray"

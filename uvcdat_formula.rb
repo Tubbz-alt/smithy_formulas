@@ -37,9 +37,10 @@ class UvcdatFormula < Formula
     system "git checkout master"
 
     # remove bad submodule
-    system "git rm --cached contrib/windfield"
-    system "git config -f .git/config --remove-section submodule.contrib/windfield ; exit 0"
-    system "git config -f .gitmodules --remove-section submodule.contrib/windfield ; exit 0"
+    # Removed in current version?
+    #system "git rm --cached contrib/windfield"
+    #system "git config -f .git/config --remove-section submodule.contrib/windfield ; exit 0"
+    #system "git config -f .gitmodules --remove-section submodule.contrib/windfield ; exit 0"
 
     system "git submodule update --init"
 
@@ -55,29 +56,29 @@ class UvcdatFormula < Formula
 
        set(Cairo_source "${CMAKE_CURRENT_BINARY_DIR}/build/Cairo")
        set(Cairo_install "${cdat_EXTERNALS}")
-      -set(Cairo_conf_args --disable-static^^--enable-xlib=no^^--enable-xcb=no^^--enable-qt=no^^--enable-quartz=no^^--enable-win32=no^^--enable-skia=no^^--enable-os2=no^^--enable-beos=no^^--enable-drm=no^^--enable-gallium=no^^--enable-gl=no^^--enable-glesv2=no^^--enable-cogl=no^^--enable-directfb=no^^--enable-vg=no)
+      -set(Cairo_conf_args --disable-static^^--enable-quartz=no^^--enable-win32=no^^--enable-skia=no^^--enable-os2=no^^--enable-beos=no^^--enable-drm=no^^--enable-gallium=no^^--enable-cogl=no)
       +set(Cairo_conf_args --enable-shared^^--enable-gobject=no^^--disable-static^^--enable-xlib=no^^--enable-xcb=no^^--enable-qt=no^^--enable-quartz=no^^--enable-win32=no^^--enable-skia=no^^--enable-os2=no^^--enable-beos=no^^--enable-drm=no^^--enable-gallium=no^^--enable-gl=no^^--enable-glesv2=no^^--enable-cogl=no^^--enable-directfb=no^^--enable-vg=no)
 
        ExternalProject_Add(Cairo
          LIST_SEPARATOR ^^
     EOF
 
-    patch <<-EOF.strip_heredoc
-      diff --git a/CMake/cdat_modules/cairo_external.cmake b/CMake/cdat_modules/cairo_external.cmake
-      diff --git a/CMake/cdat_modules/cdat_external.cmake b/CMake/cdat_modules/cdat_external.cmake
-      index 71458ef..7634445 100644
-      --- a/CMake/cdat_modules/cdat_external.cmake
-      +++ b/CMake/cdat_modules/cdat_external.cmake
-      @@ -15,7 +15,7 @@ if(APPLE)
-         set(qt_flags "--enable-qt-framework")
-       endif()
+    #patch <<-EOF.strip_heredoc
+    #  diff --git a/CMake/cdat_modules/cairo_external.cmake b/CMake/cdat_modules/cairo_external.cmake
+    #  diff --git a/CMake/cdat_modules/cdat_external.cmake b/CMake/cdat_modules/cdat_external.cmake
+    #  index 71458ef..7634445 100644
+    #  --- a/CMake/cdat_modules/cdat_external.cmake
+    #  +++ b/CMake/cdat_modules/cdat_external.cmake
+    #  @@ -15,7 +15,7 @@ if(APPLE)
+    #     set(qt_flags "--enable-qt-framework")
+    #   endif()
 
-      -set(qt_flags "${qt_flags} --with-qt=${QT_ROOT} --with-qt-lib=${QT_LIB_DIR} --with-qt-inc=${QT_INC_DIR}" --with-qt-bin=${QT_BINARY_DIR})
-      +set(qt_flags "${qt_flags} --with-qt=#{qt4.prefix} --with-qt-lib=#{qt4.prefix}/lib --with-qt-inc=#{qt4.prefix}/include" --with-qt-bin=#{qt4.prefix}/bin)
+    #  -set(qt_flags "${qt_flags} --with-qt=${QT_ROOT} --with-qt-lib=${QT_LIB_DIR} --with-qt-inc=${QT_INC_DIR}" --with-qt-bin=${QT_BINARY_DIR})
+    #  +set(qt_flags "${qt_flags} --with-qt=#{qt4.prefix} --with-qt-lib=#{qt4.prefix}/lib --with-qt-inc=#{qt4.prefix}/include" --with-qt-bin=#{qt4.prefix}/bin)
 
-       if (CDAT_BUILD_WITH_LIBDRS)
-        set(qt_flags "${qt_flags} -c pcmdi.py")
-    EOF
+    #   if (CDAT_BUILD_WITH_LIBDRS)
+    #    set(qt_flags "${qt_flags} -c pcmdi.py")
+    #EOF
 
     Dir.chdir prefix
     FileUtils.mkdir_p "Externals/bin"

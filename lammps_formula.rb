@@ -4,6 +4,12 @@ class LammpsFormula < Formula
 
   # Recent Changes Page: http://lammps.sandia.gov/bug.html
   # See https://github.com/lammps/lammps/commits/master for svn version numbers
+  concern for_version("13Oct2015") do
+    included do
+      params svn_url: "svn://svn.icms.temple.edu/lammps-ro/trunk@14112"
+    end
+  end
+
   concern for_version("15May2015") do
     included do
       params svn_url: "svn://svn.icms.temple.edu/lammps-ro/trunk@13475"

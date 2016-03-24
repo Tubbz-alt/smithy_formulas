@@ -1,6 +1,18 @@
 class BoostFormula < Formula
   homepage "http://www.boost.org/"
 
+  concern for_version("1.49.0") do
+    included do
+      url "http://sourceforge.net/projects/boost/files/boost/1.49.0/boost_1_49_0.tar.bz2"
+    end
+  end
+  
+  concern for_version("1.57.0") do
+    included do
+      url "http://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.bz2"
+    end
+  end
+
   concern for_version("1.58.0") do
     included do
       url "http://hivelocity.dl.sourceforge.net/project/boost/boost/1.58.0/boost_1_58_0.tar.bz2"
@@ -29,9 +41,26 @@ class BoostFormula < Formula
     end
   end
 
+  concern for_version("1.60.0") do
+    included do
+      url "http://downloads.sourceforge.net/project/boost/boost/1.60.0/boost_1_60_0.tar.bz2"
+      sha1 "7f56ab507d3258610391b47fef6b11635861175a"
+    end
+  end
+
   
 
-  depends_on [ "bzip2" ]
+
+  depends_on do
+    case build_name
+    when /python27/
+      [ "bzip2", "python/2.7.9" ]
+    when /python343/
+      [ "bzip2", "python/3.4.3" ]
+    else
+      [ "bzip2"]
+    end
+  end 
 
   module_commands do
     m = [ "unload PrgEnv-gnu PrgEnv-pgi PrgEnv-cray PrgEnv-intel" ]
@@ -44,6 +73,10 @@ class BoostFormula < Formula
       m << "load PrgEnv-intel"
     when /cray/
       m << "load PrgEnv-cray"
+    when /python27/
+      m << "load python/2.7.9"
+    when /python343/
+      m << "load python/3.4.3"
     end
     m
   end
@@ -76,57 +109,6 @@ class BoostFormula < Formula
 
     when /pgi/
       toolset="pgi"
-
-      # # Boost Ticket: https://svn.boost.org/trac/boost/ticket/8333
-      # patch <<-EOF.strip_heredoc
-      #   diff --git a/boost/math/special_functions/sinc.hpp b/boost/math/special_functions/sinc.hpp
-      #   index ffb19d8..8d2a8a6 100644
-      #   --- a/boost/math/special_functions/sinc.hpp
-      #   +++ b/boost/math/special_functions/sinc.hpp
-      #   @@ -52,16 +52,7 @@ namespace boost
-      #            template<typename T>
-      #            inline T    sinc_pi_imp(const T x)
-      #            {
-      #   -#if defined(BOOST_NO_STDC_NAMESPACE) && !defined(__SUNPRO_CC)
-      #   -            using    ::abs;
-      #   -            using    ::sin;
-      #   -            using    ::sqrt;
-      #   -#else    /* BOOST_NO_STDC_NAMESPACE */
-      #   -            using    ::std::abs;
-      #   -            using    ::std::sin;
-      #   -            using    ::std::sqrt;
-      #   -#endif    /* BOOST_NO_STDC_NAMESPACE */
-      #   -
-      #   +BOOST_MATH_STD_USING
-      #                // Note: this code is *not* thread safe!
-      #                static T const    taylor_0_bound = tools::epsilon<T>();
-      #                static T const    taylor_2_bound = sqrt(taylor_0_bound);
-      # EOF
-
-      # # Boost Ticket: https://svn.boost.org/trac/boost/ticket/8394
-      # patch <<-EOF.strip_heredoc
-      #   diff -ur boost_1_53_0/libs/mpi/src/python/py_environment.cpp boost_1_53_0.2/libs/mpi/src/python/py_environment.cpp
-      #   --- boost_1_53_0/libs/mpi/src/python/py_environment.cpp 2007-11-25 12:38:02.000000000 -0600
-      #   +++ boost_1_53_0.2/libs/mpi/src/python/py_environment.cpp       2013-04-04 10:16:05.000000000 -0500
-      #   @@ -31,7 +31,7 @@
-      #     */
-      #    static environment* env;
-
-      #   -bool mpi_init(list python_argv, bool abort_on_exception)
-      #   +bool mpi_init(boost::python::list python_argv, bool abort_on_exception)
-      #    {
-      #      // If MPI is already initialized, do nothing.
-      #      if (environment::initialized())
-      #   @@ -79,7 +79,7 @@
-      #      if (!environment::initialized()) {
-      #        // MPI_Init from sys.argv
-      #        object sys = object(handle<>(PyImport_ImportModule("sys")));
-      #   -    mpi_init(extract<list>(sys.attr("argv")), true);
-      #   +    mpi_init(extract<boost::python::list>(sys.attr("argv")), true);
-
-      #        // Setup MPI_Finalize call when the program exits
-      #        object atexit = object(handle<>(PyImport_ImportModule("atexit")));
-      # EOF
 
       File.open("tools/build/site-config.jam", "w+") do |f|
         f.write <<-EOF.strip_heredoc
@@ -192,24 +174,51 @@ class BoostFormula < Formula
       end
     end
 
-    system "./bootstrap.sh --with-toolset=#{toolset} --prefix=#{prefix}"
+    py_ver = nil
+    python = nil
+    python_prefix = "/sw/#{arch}/python/3.4.3/sles11.3_gnu4.3.4"      #THIS IS BAD
+    #lib_path = ENV["LD_LIBRARY_PATH"]
+    #inc_path = nil
 
-    if build_name.include?("intel")
-      # remove redundant using intel-linux definition that bootstrap.sh spits
-      # out in the project-config.jam
-      contents = File.read("project-config.jam").gsub(/if ! intel-linux in \[ feature.values <toolset> \].*{.*using intel-linux ;.*}/m, '')
-      File.open("project-config.jam", "w+") do |f|
-        f.write contents
+    
+
+    if build_name.include?("shared")
+      if build_name.include?("python27")
+        py_ver = "2.7"
+        python = "python"
+      elsif build_name.include?("python343")
+        py_ver = "3.4"
+        python = "python3"
       end
+      system "./bootstrap.sh --prefix=\"#{prefix}\" --with-python=\"#{python}\"  --with-python-root=\"#{prefix} : #{python_prefix}/include/python#{py_ver}m #{python_prefix}/include/python#{py_ver}\""
+      if build_name.include?("intel")
+        # remove redundant using intel-linux definition that bootstrap.sh spits
+        # out in the project-config.jam
+        contents = File.read("project-config.jam").gsub(/if ! intel-linux in \[ feature.values <toolset> \].*{.*using intel-linux ;.*}/m, '')
+        File.open("project-config.jam", "w+") do |f|
+          f.write contents
+        end
+      end
+      if build_name.include?("cray")
+        toolset="cray" 
+      end
+     system "./b2 -q  --ignore-site-config  variant=release  debug-symbols=off  threading=multi  runtime-link=shared  link=shared,static  toolset=gcc  python=\"#{py_ver}\" include=\"#{python_prefix}/include/python#{py_ver}m\" --layout=system  install"
+     #system "./b2 -q  --ignore-site-config  variant=release  debug-symbols=off  threading=multi  runtime-link=shared  link=shared  toolset=gcc  python=\"#{py_ver}\" include=\"#{inc_path}\" linkflags=\"-L#{lib_path}\" --layout=system  install"
+    else
+      system "./bootstrap.sh --with-toolset=#{toolset} --prefix=#{prefix}"
+      if build_name.include?("intel")
+        # remove redundant using intel-linux definition that bootstrap.sh spits
+        # out in the project-config.jam
+        contents = File.read("project-config.jam").gsub(/if ! intel-linux in \[ feature.values <toolset> \].*{.*using intel-linux ;.*}/m, '')
+        File.open("project-config.jam", "w+") do |f|
+          f.write contents
+        end
+      end
+      if build_name.include?("cray")
+        toolset="cray" 
+      end
+      system "./b2 toolset=#{toolset} link=static --debug-configuration install"
     end
-
-    # bootstrap doesn't support craycc but b2 does
-    if build_name.include?("cray")
-      toolset="cray" 
-    end
-    # system "./b2 toolset=#{toolset} link=static --clean"
-    # system "./b2 link=static --user-config=#{prefix}/source/tools/build/v2/user-config.jam --debug-configuration install"
-    system "./b2 toolset=#{toolset} link=static --debug-configuration install"
   end
 
   modulefile <<-MODULEFILE.strip_heredoc
